@@ -1,0 +1,2 @@
+# lb-bot
+Discord Bot
