@@ -1,4 +1,4 @@
-var http = require( 'https' );
+var http = require( 'http' );
 var request = require( 'request' );
 var Discord = require( 'discord.js' );
 
