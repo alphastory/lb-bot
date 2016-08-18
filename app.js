@@ -1,4 +1,5 @@
-var http = require( 'http' );
+// var https = require( 'https' );
+var request = require( 'request' );
 var Discord = require( 'discord.js' );
 
 if( typeof localStorage === 'undefined' || localStorage === null ){
@@ -6,8 +7,42 @@ if( typeof localStorage === 'undefined' || localStorage === null ){
 	localStorage = new LocalStorage( './scratch' );
 }
 
+// ====================================
+// Battle.net Stuff
+// ====================================
+var bnetKey = 'q6k9yhwahdvafnmn58qsk3ubnn6sheer';
+var bnetSecret = 'a5QxxT84eZhQbQMvP8Cddw82AKptzA82';
+
+// ====================================
+// Command List
+// ====================================
+var commands = [
+	{
+		cmd: '!help',
+		res: 'Shows list of available commands.'
+	},{
+		cmd: '!ping',
+		res: 'Responds with pong.'
+	},{
+		cmd: '!guildmaster',
+		res: 'Will send user a Direct Message with the Guild Master\'s Battle.net Tag'
+	},{
+		cmd: '!ratings NAME-REALM',
+		res: 'Will retrieve the character\'s PvP Ratings. (e.g., !ratings Lokien-Anub\'arak )'
+	},{
+		cmd: '!realmstatus',
+		res: 'Will output realm status for each of the guild\'s connected realms.'
+	},{
+		cmd: '!about',
+		res: 'Will output general information about the bot.'
+	}
+]
+
 var bot = new Discord.Client();
 
+// ====================================
+// Login to the Discord Service
+// ====================================
 bot.loginWithToken( 'MjE1MTkxMDk3NjQ1NzI3NzQ1.CpZGVQ.J9hIKBBStBpP69X3qGAHfDOkOTY', function( err, token ){
 	if( err ){
 		console.log( 'There was an error loggin in: ' + error );
@@ -18,29 +53,118 @@ bot.loginWithToken( 'MjE1MTkxMDk3NjQ1NzI3NzQ1.CpZGVQ.J9hIKBBStBpP69X3qGAHfDOkOTY
 } );
 
 bot.on( 'message', function( message ){
+	
+// ========================================
+// USER ACCESSIBLE COMMANDS
+// ========================================
+	// !help
+	// ====================================
+	// Send Commands
+	// ====================================
+	if( message.content.startsWith( '!help' ) ){
+		bot.sendMessage( message, 'Command list sent to ' + message.author.toString() + ' via Direct Message.' );
+		bot.sendMessage( message.author, '#Available Commands' );
+		for( var i = 0; i < commands.length; i++ ){
+			bot.sendMessage( message.author, '**' + commands[i].cmd + '**\n' + commands[i].res );
+			// bot.sendMessage( message, commands[i].res );
+		}
+	}
 
-	// 
+	// ====================================
+	// !ping
+	// ====================================
+	// Ping-Pong!
+	// ====================================
 	if( message.content === '!ping' ){
-		console.log( 'Ping-Pong' );
 		bot.reply( message, 'pong' );
 	}
 
-	// Admin, show the contents of message.
-	if( message.content === '!log' ){
-		console.log( message );
-		bot.sendMessage( message, 'Data logged. Check shell bash.' )
-	}
-
-	// Send Guild Master Information
+	// ====================================
+	// !guildmaster
+	// ====================================
+	// Send the user a DM containing the
+	// GM information
+	// ====================================
 	if( message.content === '!guildmaster' ){
 		console.log( 'Sending PM to user for GM info.' );
 		bot.sendMessage( message.author, 'The guild master is Lokien. His battletag is XtasyArmada#1751' );
 		bot.reply( message, 'Please check your Direct Messages' );
 	}
 
+	// ====================================
+	// !ratings <NAME-REALM>
+	// ====================================
+	// Send the user a DM containing the
+	// GM information
+	// ====================================
+	if( message.content.startsWith( '!ratings' ) ){
+		var ts = Date.now();
+		var param = message.content.split( ' ' )[1];
+		var toon = param.split( '-' )[0];
+		var realm = param.split( '-' )[1];
+		var url = 'https://us.api.battle.net/wow/character/' + realm + '/' + toon + '?fields=pvp&locale=en_US&apikey=' + bnetKey;
+
+		// https.get( url, function( res ){
+		request( url, function( error, res, body ){
+			if( !error && res.statusCode === 200 ){
+				var data = JSON.parse( res.body );
+				var brackets = data.pvp.brackets;
+				var two = brackets.ARENA_BRACKET_2v2.rating;
+				var three = brackets.ARENA_BRACKET_3v3.rating;
+				var rbg = brackets.ARENA_BRACKET_RBG.rating;
+
+				var content = '**Arena Ratings for ' + toon + '-' + realm + '**';
+					content += '\n2v2: ' + two;
+					content += '\n3v3: ' + three;
+					content += '\nRBG: ' + rbg;
+					content += '\n*Received in ' + ( Date.now() - ts ) + 'ms.*'
+				bot.sendMessage( message, content );
+				return;
+			}
+		} );
+	}
+
+	if( message.content.startsWith( '!realmstatus' ) ){
+		var ts = Date.now();
+		var ourRealms = ['anubarak', 'garithos', 'crushridge', 'nathrezim', 'smolderthorn' ];
+		var url = 'https://us.api.battle.net/wow/realm/status?locale=en_US&apikey=' + bnetKey;
+		request( url, function( error, res, body ){
+			if( !error && res.statusCode === 200 ){
+				var data = JSON.parse( res.body );
+				var filteredRealms = data.realms.filter( function( realm ){
+					return ourRealms.indexOf( realm.slug ) != -1;
+				} );
+				for( var i = 0; i < filteredRealms.length; i++ ){
+					bot.sendMessage( message, '```\n' + filteredRealms[i].name + ' is ' + ( ( filteredRealms[i].status ) ? 'UP' : 'DOWN' ) + '\n```' );
+					if( i === filteredRealms.length - 1 ){
+						bot.sendMessage( message, '*Received in ' + ( Date.now() - ts ) + 'ms.*' );
+					}
+				}
+			}
+		} );
+	}
+
+	// ====================================
+	// !about
+	// ====================================
+	// Provides information about the bot
+	// ====================================
+	if( message.content.startsWith( '!about' ) ){
+		var ts = Date.now();
+		var content = '**Wretched-Bot**';
+			content += '\nA Discord bot that has been developed and will be maintained by Lokien and Kizzim.';
+			content += '\nVersion: 0.0.1';
+		bot.sendMessage( message, content );
+	}
+
+// ========================================
+// CHARACTER INFORMATION
+// ========================================
+	// !addcharacter
+	// ====================================
 	if( message.content.startsWith( '!addcharacter' ) ){
 		// Get an argument with the command
-		var charName = message.content.split( ' ' )[1]
+		var charName = message.content.split( ' ' )[1];
 		var userData;
 		if( localStorage.getItem( message.author.id ) ){
 			userData = localStorage.getItem( message.author.id );
@@ -61,6 +185,9 @@ bot.on( 'message', function( message ){
 		bot.sendMessage( message, 'Cached ' + charName + ' to your profile.' );
 	}
 
+	// ====================================
+	// !characters
+	// ====================================
 	if( message.content === '!characters' ){
 
 		var userData = localStorage.getItem( message.author.id );
@@ -75,10 +202,27 @@ bot.on( 'message', function( message ){
 		}
 
 	}
-
+	
+// ========================================
+// DEVELOPER/ADMIN COMMANDS
+// ========================================
+	// !id
+	// ====================================
+	// Developer Information for user_id
+	// ====================================
 	if( message.content.startsWith( '!id' ) ){
 		var user_id = message.author.id;
 		bot.reply( message, 'Your ID is ' + user_id );
+	}
+
+	// ====================================
+	// !log
+	// ====================================
+	// Send Admin Package information
+	// ====================================
+	if( message.content === '!log' ){
+		console.log( message );
+		bot.sendMessage( message, 'Data logged. Check shell bash.' )
 	}
 
 
