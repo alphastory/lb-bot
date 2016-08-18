@@ -1,11 +1,11 @@
-// var http = require( 'https' );
+var http = require( 'https' );
 var request = require( 'request' );
 var Discord = require( 'discord.js' );
 
 var mute = false;
 var muteTimer;
 
-// var server = http.createServer();
+var server = http.createServer().list( process.env.PORT || 5000 );
 // server.listen( process.env.PORT || 5000 );
 
 if( typeof localStorage === 'undefined' || localStorage === null ){
