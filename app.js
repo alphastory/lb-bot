@@ -1,13 +1,18 @@
+// ====================================
+// Dependencies
+// ====================================
 var http = require( 'http' );
-var request = require( 'request' );
 var Discord = require( 'discord.js' );
+var mute = require( './helpers/mute' );
 
-var mute = false;
-var muteTimer;
-
+// ====================================
+// Server Stuff
+// ====================================
 var server = http.createServer().listen( process.env.PORT || 5000 );
-// server.listen( process.env.PORT || 5000 );
 
+// ====================================
+// Local Storage Stuff
+// ====================================
 if( typeof localStorage === 'undefined' || localStorage === null ){
 	var LocalStorage = require( 'node-localstorage' ).LocalStorage;
 	localStorage = new LocalStorage( './scratch' );
@@ -16,34 +21,9 @@ if( typeof localStorage === 'undefined' || localStorage === null ){
 // ====================================
 // Battle.net Stuff
 // ====================================
-var bnetKey = 'q6k9yhwahdvafnmn58qsk3ubnn6sheer';
-var bnetSecret = 'a5QxxT84eZhQbQMvP8Cddw82AKptzA82';
+var bnet = require( './helpers/bnet' );
 
-// ====================================
-// Command List
-// ====================================
-var commands = [
-	{
-		cmd: '!help',
-		res: 'Shows list of available commands.'
-	},{
-		cmd: '!ping',
-		res: 'Responds with pong.'
-	},{
-		cmd: '!guildmaster',
-		res: 'Will send user a Direct Message with the Guild Master\'s Battle.net Tag'
-	},{
-		cmd: '!ratings NAME-REALM',
-		res: 'Will retrieve the character\'s PvP Ratings. (e.g., !ratings Lokien-Anub\'arak )'
-	},{
-		cmd: '!realmstatus',
-		res: 'Will output realm status for each of the guild\'s connected realms.'
-	},{
-		cmd: '!about',
-		res: 'Will output general information about the bot.'
-	}
-]
-
+// The Bot
 var bot = new Discord.Client();
 
 // ====================================
@@ -58,6 +38,20 @@ bot.loginWithToken( 'MjE1MTkxMDk3NjQ1NzI3NzQ1.CpZGVQ.J9hIKBBStBpP69X3qGAHfDOkOTY
 	}
 } );
 
+// ====================================
+// Command List
+// ====================================
+var help = require( './commands/help' );
+var addons = require( './commands/addons' );
+var guildmaster = require( './commands/guildmaster' );
+var ratings = require( './commands/ratings' );
+var realmstatus = require( './commands/realmstatus' );
+var about = require( './commands/about' );
+var shutup = require( './commands/shutup' );
+
+// ====================================
+// Command Handlers
+// ====================================
 bot.on( 'message', function( message ){
 	
 // ========================================
@@ -68,12 +62,7 @@ bot.on( 'message', function( message ){
 	// Send Commands
 	// ====================================
 	if( message.content.startsWith( '!help' ) ){
-		bot.sendMessage( message, 'Command list sent to ' + message.author.toString() + ' via Direct Message.' );
-		bot.sendMessage( message.author, '#Available Commands' );
-		for( var i = 0; i < commands.length; i++ ){
-			bot.sendMessage( message.author, '**' + commands[i].cmd + '**\n' + commands[i].res );
-			// bot.sendMessage( message, commands[i].res );
-		}
+		help( bot, message );
 	}
 
 	// ====================================
@@ -81,9 +70,8 @@ bot.on( 'message', function( message ){
 	// ====================================
 	// Responds with required addons.
 	// ====================================
-	if( message.content.startsWith( '!addons' ) && !mute ){
-		bot.sendMessage( message, 'Feature not yet added.' );
-		muteBot();
+	if( message.content.startsWith( '!addons' ) && !mute.muted ){
+		addons( bot, message );
 	}
 
 	// ====================================
@@ -91,29 +79,9 @@ bot.on( 'message', function( message ){
 	// ====================================
 	// Ping-Pong!
 	// ====================================
-	if( message.content === '!ping' && !mute ){
+	if( message.content.startsWith( '!ping' ) && !mute.muted ){
+		mute.activate( 10 );
 		bot.reply( message, 'pong' );
-		muteBot();
-	}
-
-	// ====================================
-	// !ping
-	// ====================================
-	// Ping-Pong!
-	// ====================================
-	if( message.content.startsWith( 'Hey WB,' && !mute ) ){
-		var msg = message.content.slice(8);
-		console.log( message.author.username );
-		if( message.author.username == 'Montygrail13' ){
-			bot.sendMessage( message, 'Fuck you.' );
-			muteBot();
-			return;
-		}
-
-		if( msg.toLowerCase() === 'i\'m sad' ){
-			bot.sendMessage( message, 'It\'s okay buddy. I\'m here. *-gently pats ' + message.author + '-*' );
-			muteBot();
-		}
 	}
 
 	// ====================================
@@ -122,10 +90,8 @@ bot.on( 'message', function( message ){
 	// Send the user a DM containing the
 	// GM information
 	// ====================================
-	if( message.content === '!guildmaster' ){
-		console.log( 'Sending PM to user for GM info.' );
-		bot.sendMessage( message.author, 'The guild master is Lokien. His battletag is XtasyArmada#1751' );
-		bot.reply( message, 'Please check your Direct Messages' );
+	if( message.content.startsWith( '!guildmaster' ) ){
+		guildmaster( bot, message );
 	}
 
 	// ====================================
@@ -134,62 +100,18 @@ bot.on( 'message', function( message ){
 	// Send the user a DM containing the
 	// GM information
 	// ====================================
-	if( message.content.startsWith( '!ratings' ) && !mute ){
-		muteBot();
-		var ts = Date.now();
-		var param = message.content.split( ' ' )[1];
-		var toon = param.split( '-' )[0];
-		var realm = param.split( '-' )[1];
-		bot.sendMessage( message, '*Fetching Ratings for ' + toon + '-' + realm + '. Please wait.*' );
-		var url = 'https://us.api.battle.net/wow/character/' + realm + '/' + toon + '?fields=pvp&locale=en_US&apikey=' + bnetKey;
-
-		// https.get( url, function( res ){
-		request( url, function( error, res, body ){
-			if( !error && res.statusCode === 200 ){
-				var data = JSON.parse( res.body );
-				var brackets = data.pvp.brackets;
-				var two = brackets.ARENA_BRACKET_2v2.rating;
-				var three = brackets.ARENA_BRACKET_3v3.rating;
-				var rbg = brackets.ARENA_BRACKET_RBG.rating;
-
-				var content = '**Arena Ratings for ' + toon + '-' + realm + '**';
-					content += '\n2v2: ' + two;
-					content += '\n3v3: ' + three;
-					content += '\nRBG: ' + rbg;
-					content += '\n*Received in ' + ( Date.now() - ts ) + 'ms.*'
-				bot.sendMessage( message, content );
-				return;
-			}
-		} );
+	if( message.content.startsWith( '!ratings' ) && !mute.muted ){
+		ratings( bot, message );
 	}
 
-	// if( message.content.startsWith( '@SynBot' ) ){
-	// 	bot.sendMessage( message, 'Fuck that guy.' );
-	// }
-
-	// if( message.content.startsWith( '~' ) ){
-	// 	bot.sendMessage( message, 'Fuck that SynBot guy. I\'m much better.' );
-	// }
-
-	if( message.content.startsWith( '!realmstatus' ) && !mute ){
-		muteBot();
-		var ts = Date.now();
-		var ourRealms = ['anubarak', 'garithos', 'crushridge', 'nathrezim', 'smolderthorn' ];
-		var url = 'https://us.api.battle.net/wow/realm/status?locale=en_US&apikey=' + bnetKey;
-		request( url, function( error, res, body ){
-			if( !error && res.statusCode === 200 ){
-				var data = JSON.parse( res.body );
-				var filteredRealms = data.realms.filter( function( realm ){
-					return ourRealms.indexOf( realm.slug ) != -1;
-				} );
-				for( var i = 0; i < filteredRealms.length; i++ ){
-					bot.sendMessage( message, '```\n' + filteredRealms[i].name + ' is ' + ( ( filteredRealms[i].status ) ? 'UP' : 'DOWN' ) + '\n```' );
-					if( i === filteredRealms.length - 1 ){
-						bot.sendMessage( message, '*Received in ' + ( Date.now() - ts ) + 'ms.*' );
-					}
-				}
-			}
-		} );
+	// ====================================
+	// !realmstatus
+	// ====================================
+	// Send the user that status of 
+	// our connected realms.
+	// ====================================
+	if( message.content.startsWith( '!realmstatus' ) && !mute.muted ){
+		realmstatus( bot, message );
 	}
 
 	// ====================================
@@ -197,22 +119,19 @@ bot.on( 'message', function( message ){
 	// ====================================
 	// Provides information about the bot
 	// ====================================
-	if( message.content.startsWith( '!about' ) && !mute ){
-		muteBot();
-		var ts = Date.now();
-		var content = '**Wretched-Bot**';
-			content += '\nA Discord bot that has been developed and will be maintained by Lokien and Kizzim.';
-			content += '\nVersion: 0.0.1';
-		bot.sendMessage( message, content );
+	if( message.content.startsWith( '!about' ) && !mute.muted ){
+		about( bot, message );
 	}
 
-	if( message.content.startsWith( '!mute' ) ){
-		bot.sendMessage( message, 'I have been muted for 5 minutes.' );
-		mute = true;
-		muteTimer = setTimeout( function(){
-			mute = false;
-			bot.sendMessage( message, 'I am now unmuted' );
-		}, 5 * 60000 );
+	// ====================================
+	// !mute
+	// ====================================
+	// Mutes the bot for a specified
+	// duration or for 5 minutes, by
+	// default.
+	// ====================================
+	if( message.content.startsWith( '!shutup' ) ){
+		shutup( bot, message );
 	}
 
 // ========================================
@@ -285,10 +204,3 @@ bot.on( 'message', function( message ){
 
 
 } );
-
-function muteBot(){
-	mute = true;
-	muteTimer = setTimeout( function(){
-		mute = false;
-	}, 10000 );
-}
