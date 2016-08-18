@@ -5,7 +5,7 @@ var Discord = require( 'discord.js' );
 var mute = false;
 var muteTimer;
 
-var server = http.createServer().list( process.env.PORT || 5000 );
+var server = http.createServer().listen( process.env.PORT || 5000 );
 // server.listen( process.env.PORT || 5000 );
 
 if( typeof localStorage === 'undefined' || localStorage === null ){
