@@ -1,6 +1,11 @@
-// var https = require( 'https' );
+var http = require( 'https' );
 var request = require( 'request' );
 var Discord = require( 'discord.js' );
+
+var server = http.createServer();
+server.listen( 80, function(){
+	console.log( 'Listening on port 80' );
+});
 
 if( typeof localStorage === 'undefined' || localStorage === null ){
 	var LocalStorage = require( 'node-localstorage' ).LocalStorage;
