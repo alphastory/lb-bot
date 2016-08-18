@@ -3,9 +3,7 @@ var request = require( 'request' );
 var Discord = require( 'discord.js' );
 
 var server = http.createServer();
-server.listen( 80, function(){
-	console.log( 'Listening on port 80' );
-});
+server.listen( process.env.PORT || 5000 );
 
 if( typeof localStorage === 'undefined' || localStorage === null ){
 	var LocalStorage = require( 'node-localstorage' ).LocalStorage;
