@@ -2,6 +2,9 @@
 var request = require( 'request' );
 var Discord = require( 'discord.js' );
 
+var mute = false;
+var muteTimer;
+
 // var server = http.createServer();
 // server.listen( process.env.PORT || 5000 );
 
@@ -74,12 +77,43 @@ bot.on( 'message', function( message ){
 	}
 
 	// ====================================
+	// !addons
+	// ====================================
+	// Responds with required addons.
+	// ====================================
+	if( message.content.startsWith( '!addons' ) && !mute ){
+		bot.sendMessage( message, 'Feature not yet added.' );
+		muteBot();
+	}
+
+	// ====================================
 	// !ping
 	// ====================================
 	// Ping-Pong!
 	// ====================================
-	if( message.content === '!ping' ){
+	if( message.content === '!ping' && !mute ){
 		bot.reply( message, 'pong' );
+		muteBot();
+	}
+
+	// ====================================
+	// !ping
+	// ====================================
+	// Ping-Pong!
+	// ====================================
+	if( message.content.startsWith( 'Hey WB,' && !mute ) ){
+		var msg = message.content.slice(8);
+		console.log( message.author.username );
+		if( message.author.username == 'Montygrail13' ){
+			bot.sendMessage( message, 'Fuck you.' );
+			muteBot();
+			return;
+		}
+
+		if( msg.toLowerCase() === 'i\'m sad' ){
+			bot.sendMessage( message, 'It\'s okay buddy. I\'m here. *-gently pats ' + message.author + '-*' );
+			muteBot();
+		}
 	}
 
 	// ====================================
@@ -100,11 +134,13 @@ bot.on( 'message', function( message ){
 	// Send the user a DM containing the
 	// GM information
 	// ====================================
-	if( message.content.startsWith( '!ratings' ) ){
+	if( message.content.startsWith( '!ratings' ) && !mute ){
+		muteBot();
 		var ts = Date.now();
 		var param = message.content.split( ' ' )[1];
 		var toon = param.split( '-' )[0];
 		var realm = param.split( '-' )[1];
+		bot.sendMessage( message, '*Fetching Ratings for ' + toon + '-' + realm + '. Please wait.*' );
 		var url = 'https://us.api.battle.net/wow/character/' + realm + '/' + toon + '?fields=pvp&locale=en_US&apikey=' + bnetKey;
 
 		// https.get( url, function( res ){
@@ -127,7 +163,16 @@ bot.on( 'message', function( message ){
 		} );
 	}
 
-	if( message.content.startsWith( '!realmstatus' ) ){
+	// if( message.content.startsWith( '@SynBot' ) ){
+	// 	bot.sendMessage( message, 'Fuck that guy.' );
+	// }
+
+	// if( message.content.startsWith( '~' ) ){
+	// 	bot.sendMessage( message, 'Fuck that SynBot guy. I\'m much better.' );
+	// }
+
+	if( message.content.startsWith( '!realmstatus' ) && !mute ){
+		muteBot();
 		var ts = Date.now();
 		var ourRealms = ['anubarak', 'garithos', 'crushridge', 'nathrezim', 'smolderthorn' ];
 		var url = 'https://us.api.battle.net/wow/realm/status?locale=en_US&apikey=' + bnetKey;
@@ -152,12 +197,22 @@ bot.on( 'message', function( message ){
 	// ====================================
 	// Provides information about the bot
 	// ====================================
-	if( message.content.startsWith( '!about' ) ){
+	if( message.content.startsWith( '!about' ) && !mute ){
+		muteBot();
 		var ts = Date.now();
 		var content = '**Wretched-Bot**';
 			content += '\nA Discord bot that has been developed and will be maintained by Lokien and Kizzim.';
 			content += '\nVersion: 0.0.1';
 		bot.sendMessage( message, content );
+	}
+
+	if( message.content.startsWith( '!mute' ) ){
+		bot.sendMessage( message, 'I have been muted for 5 minutes.' );
+		mute = true;
+		muteTimer = setTimeout( function(){
+			mute = false;
+			bot.sendMessage( message, 'I am now unmuted' );
+		}, 5 * 60000 );
 	}
 
 // ========================================
@@ -230,3 +285,10 @@ bot.on( 'message', function( message ){
 
 
 } );
+
+function muteBot(){
+	mute = true;
+	muteTimer = setTimeout( function(){
+		mute = false;
+	}, 10000 );
+}
