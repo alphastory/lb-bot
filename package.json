@@ -2,9 +2,9 @@
   "name": "leaderboard-bot",
   "version": "0.0.1",
   "description": "A bot for Discord.",
-  "main": "index.js",
+  "main": "app.js",
   "scripts": {
-    "start" : "node app.js",
+    // "start" : "node app.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",

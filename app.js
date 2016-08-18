@@ -1,9 +1,9 @@
-var http = require( 'https' );
+// var http = require( 'https' );
 var request = require( 'request' );
 var Discord = require( 'discord.js' );
 
-var server = http.createServer();
-server.listen( process.env.PORT || 5000 );
+// var server = http.createServer();
+// server.listen( process.env.PORT || 5000 );
 
 if( typeof localStorage === 'undefined' || localStorage === null ){
 	var LocalStorage = require( 'node-localstorage' ).LocalStorage;
